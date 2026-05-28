@@ -1,0 +1,244 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Barlow:wght@300;400;500;600&family=Barlow+Condensed:wght@400;500;600;700&display=swap');
+
+:root {
+  --ombu-green:    #FFD700;
+  --ombu-dark:     #D4A800;
+  --ombu-darker:   #A07800;
+  --ombu-glow:     rgba(255, 215, 0, 0.30);
+  --ombu-glow-sm:  rgba(255, 215, 0, 0.10);
+
+  --bg-base:       #111008;
+  --bg-panel:      #1a1700;
+  --bg-card:       #221e00;
+  --bg-card-hover: #2d2800;
+  --bg-input:      #1a1700;
+  --border:        rgba(255, 215, 0, 0.22);
+  --border-hover:  rgba(255, 215, 0, 0.55);
+  --border-active: rgba(255, 215, 0, 0.85);
+  --text-primary:  #fff9e6;
+  --text-secondary:#c9a83a;
+  --text-muted:    #7a6820;
+  --tile-gradient: linear-gradient(135deg, #221e00 0%, #1a1700 100%);
+}
+
+[data-theme="light"] {
+  --bg-base:       #fdf8e1;
+  --bg-panel:      #ffffff;
+  --bg-card:       #fffde7;
+  --bg-card-hover: #fff9c4;
+  --bg-input:      #ffffff;
+  --border:        rgba(180, 140, 0, 0.25);
+  --border-hover:  rgba(180, 140, 0, 0.55);
+  --border-active: rgba(180, 140, 0, 0.85);
+  --text-primary:  #1a1400;
+  --text-secondary:#7a5800;
+  --text-muted:    #b8920a;
+  --tile-gradient: linear-gradient(135deg, #fffde7 0%, #fff9c4 100%);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Barlow', sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background 0.3s, color 0.3s;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--ombu-darker); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ombu-green); }
+
+/* ── Cards ───────────────────────────────────────────────────────── */
+.xbox-card {
+  background: var(--tile-gradient);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+}
+.xbox-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--ombu-glow-sm) 0%, transparent 60%);
+  opacity: 0;
+  transition: opacity 0.2s;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+}
+.xbox-card > * {
+  position: relative;
+  z-index: 1;
+}
+.xbox-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 20px var(--ombu-glow);
+}
+.xbox-card:hover::before { opacity: 1; }
+.xbox-card.active {
+  border-color: var(--border-active);
+  box-shadow: 0 0 0 1px var(--border-active), 0 0 30px var(--ombu-glow);
+}
+
+/* ── Stat tiles ──────────────────────────────────────────────────── */
+.stat-tile {
+  background: var(--tile-gradient);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.stat-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.stat-tile > * {
+  position: relative;
+  z-index: 1;
+}
+.stat-tile::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--ombu-green);
+  border-radius: 0 0 14px 14px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s;
+  pointer-events: none;
+}
+.stat-tile:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 36px rgba(0,0,0,0.3), 0 0 24px var(--ombu-glow);
+}
+.stat-tile:hover::after { transform: scaleX(1); }
+.stat-tile.active {
+  border-color: var(--border-active);
+  box-shadow: 0 0 0 1px var(--border-active), 0 0 28px var(--ombu-glow);
+}
+.stat-tile.active::after { transform: scaleX(1); }
+
+/* ── Table rows ──────────────────────────────────────────────────── */
+.data-row {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s, border-color 0.15s;
+}
+.data-row:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-hover);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+.btn-xbox {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 16px;
+  border: 1.5px solid var(--ombu-green);
+  background: transparent;
+  color: var(--ombu-green);
+  cursor: pointer;
+  border-radius: 10px;
+  transition: all 0.15s;
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+.btn-xbox:hover { background: rgba(255,215,0,0.1); }
+.btn-xbox:active { transform: scale(0.97); }
+.btn-xbox.filled {
+  background: var(--ombu-green);
+  color: #000;
+  font-weight: 700;
+}
+.btn-xbox.filled:hover { background: #ffe033; border-color: #ffe033; }
+
+/* ── Inputs ──────────────────────────────────────────────────────── */
+.xbox-input {
+  background: var(--bg-input);
+  border: 1.5px solid var(--border);
+  color: var(--text-primary);
+  font-family: 'Barlow', sans-serif;
+  font-size: 14px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+}
+.xbox-input:focus {
+  border-color: var(--ombu-green);
+  box-shadow: 0 0 0 3px var(--ombu-glow);
+}
+.xbox-input::placeholder { color: var(--text-muted); }
+
+/* ── Badges ──────────────────────────────────────────────────────── */
+.badge {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  position: relative;
+  z-index: 1;
+}
+.badge-signed  { background: rgba(255,215,0,0.15);  color: #FFD700; border: 1px solid rgba(255,215,0,0.35); }
+.badge-pending { background: rgba(255,170,0,0.12); color: #ffaa00; border: 1px solid rgba(255,170,0,0.35); }
+.badge-cta     { background: rgba(0,140,255,0.12); color: #0088ff; border: 1px solid rgba(0,140,255,0.35); }
+.badge-salon   { background: rgba(200,200,200,0.08); color: var(--text-secondary); border: 1px solid var(--border); }
+.badge-nuevo   { background: rgba(255,100,0,0.12); color: #ff6400; border: 1px solid rgba(255,100,0,0.35); }
+.badge-obras   { background: rgba(255,50,50,0.12); color: #ff3232; border: 1px solid rgba(255,50,50,0.35); }
+.badge-web     { background: rgba(160,0,255,0.12); color: #b44fff; border: 1px solid rgba(160,0,255,0.35); }
+
+.glow-text { color: var(--ombu-green); text-shadow: 0 0 20px var(--ombu-glow); }
+
+.section-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.slide-down { animation: slideDown 0.22s ease-out; }
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.fade-in { animation: fadeIn 0.3s ease-out; }
