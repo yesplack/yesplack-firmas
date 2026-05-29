@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-server'
 import ClientesShell from './ClientesShell'
 
 const PAGE_SIZE = 60
@@ -8,14 +8,14 @@ export default async function ClientesPage({
 }: {
   searchParams: { q?: string; tipo?: string; page?: string }
 }) {
-  const supabase = createServerClient()
+  const supabase = createAdminClient() as any
   const q        = searchParams.q    ?? ''
   const tipo     = searchParams.tipo ?? ''
   const page     = parseInt(searchParams.page ?? '1', 10)
   const from     = (page - 1) * PAGE_SIZE
   const to       = from + PAGE_SIZE - 1
 
-  let query = (supabase as any)
+  let query = supabase
     .from('clients')
     .select('*', { count: 'exact' })
     .order('id', { ascending: true })
@@ -27,7 +27,7 @@ export default async function ClientesPage({
   const [{ data: clients, count }, { data: statsRow }, { data: listsData }] = await Promise.all([
     query,
     supabase.rpc('get_dashboard_stats'),
-    (supabase as any).from('price_lists').select('id, client_id, status'),
+    supabase.from('price_lists').select('id, client_id, status'),
   ])
 
   return (
