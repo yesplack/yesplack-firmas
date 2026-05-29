@@ -1,9 +1,9 @@
-import { createServerClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import SigningClient from './SigningClient'
 
 export default async function FirmarPage({ params }: { params: { token: string } }) {
-  const supabase = createServerClient()
+  const supabase = createAdminClient() as any
 
   const { data: listRaw } = await (supabase as any)
     .from('price_lists')
