@@ -27,7 +27,7 @@ export default async function ClientesPage({
   const [{ data: clients, count }, { data: statsRow }, { data: listsData }] = await Promise.all([
     query,
     supabase.rpc('get_dashboard_stats'),
-    supabase.from('price_lists').select('id, client_id, status'),
+    supabase.from('price_lists').select('id, client_id, status, clients(nombre)'),
   ])
 
   return (

@@ -39,7 +39,11 @@ export default function ClientesShell({ clients, count, totalPages, page, q, tip
   const clientIdsWithLists   = [...new Set(listsData.map((l: any) => l.client_id))]
   const clientIdsWithPending = [...new Set(listsData.filter((l: any) => l.status === 'pending').map((l: any) => l.client_id))]
   const clientIdsWithSigned  = [...new Set(listsData.filter((l: any) => l.status === 'signed').map((l: any) => l.client_id))]
-  const getClientName = (id: number) => clients.find((c: any) => c.id === id)?.nombre ?? `Cliente #${id}`
+  const getClientName = (id: number) => {
+    const fromList = listsData.find((l: any) => l.client_id === id)
+    if (fromList?.clients?.nombre) return fromList.clients.nombre
+    return clients.find((c: any) => c.id === id)?.nombre ?? `Cliente #${id}`
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
