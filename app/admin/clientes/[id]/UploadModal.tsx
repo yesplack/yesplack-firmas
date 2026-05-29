@@ -50,10 +50,73 @@ const DOC_LABEL: Record<DocType, string> = {
   remito:     '📦 Remito',
 }
 
+// ── Extrae número de documento desde el texto del PDF ─────────────────
+async function extractDocNumber(file: File, docType: DocType): Promise<string> {
+  try {
+    // Cargar pdf.js desde CDN
+    if (!(window as any).pdfjsLib) {
+      await new Promise<void>((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+        script.onload = () => resolve()
+        script.onerror = () => reject()
+        document.head.appendChild(script)
+      })
+      ;(window as any).pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+    }
+
+    const arrayBuffer = await file.arrayBuffer()
+    const pdf         = await (window as any).pdfjsLib.getDocument({ data: arrayBuffer }).promise
+    
+    // Leer las primeras 2 páginas para encontrar el número
+    let fullText = ''
+    const pagesToRead = Math.min(2, pdf.numPages)
+    for (let i = 1; i <= pagesToRead; i++) {
+      const page    = await pdf.getPage(i)
+      const content = await page.getTextContent()
+      fullText += content.items.map((item: any) => item.str).join(' ') + ' '
+    }
+
+    // Patrón común: XXXX-XXXXXXXX (ej: 0005-00000043, 0000-00015432)
+    const numPattern = /\b(\d{4}-\d{8})\b/g
+    const matches    = [...fullText.matchAll(numPattern)].map(m => m[1])
+
+    if (docType === 'invoice') {
+      // Buscar el número que aparece cerca de "FACTURA"
+      const facturaIdx = fullText.toUpperCase().indexOf('FACTURA')
+      if (facturaIdx !== -1) {
+        const nearby = fullText.substring(facturaIdx, facturaIdx + 150)
+        const m = nearby.match(/\b(\d{4}-\d{8})\b/)
+        if (m) return `Factura N° ${m[1]}`
+      }
+      // Fallback: primer número encontrado
+      if (matches.length) return `Factura N° ${matches[0]}`
+    }
+
+    if (docType === 'remito') {
+      // Buscar número cerca de "REMITO" o el que tenga más ceros (número de remito suele ser alto)
+      const remitoIdx = fullText.toUpperCase().indexOf('REMITO')
+      if (remitoIdx !== -1) {
+        const nearby = fullText.substring(remitoIdx, remitoIdx + 200)
+        const m = nearby.match(/\b(\d{4}-\d{8})\b/)
+        if (m) return `Remito N° ${m[1]}`
+      }
+      // Fallback: buscar el número con más dígitos de secuencia
+      if (matches.length) return `Remito N° ${matches[0]}`
+    }
+
+    // price_list: no tiene número estándar, retorna vacío
+    return ''
+  } catch {
+    return ''
+  }
+}
+
 // ── FileZone ──────────────────────────────────────────────────────────
-function FileZone({ label, required, file, onFile, hint }: {
+function FileZone({ label, required, file, onFile, hint, loading: extracting }: {
   label: string; required: boolean; file: File | null
-  onFile: (f: File | null) => void; hint?: string
+  onFile: (f: File | null) => void; hint?: string; loading?: boolean
 }) {
   const ref = useRef<HTMLInputElement>(null)
   return (
@@ -78,9 +141,11 @@ function FileZone({ label, required, file, onFile, hint }: {
       >
         {file ? (
           <>
-            <div style={{ fontSize: '20px', marginBottom: '4px' }}>📄</div>
+            <div style={{ fontSize: '20px', marginBottom: '4px' }}>{extracting ? '⏳' : '📄'}</div>
             <div style={{ fontSize: '13px', fontWeight: 600, color: '#00c853', wordBreak: 'break-all' }}>{file.name}</div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{(file.size / 1024).toFixed(0)} KB · Click para cambiar</div>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+              {extracting ? 'Leyendo número de documento…' : `${(file.size / 1024).toFixed(0)} KB · Click para cambiar`}
+            </div>
           </>
         ) : (
           <>
@@ -99,22 +164,37 @@ function UploadModalContent({ clientId, clientName, onClose, onSuccess }: {
   clientId: number; clientName: string
   onClose: () => void; onSuccess: () => void
 }) {
-  const [docType,    setDocType]    = useState<DocType>('price_list')
+  const [docType,     setDocType]     = useState<DocType>('price_list')
   const [expiresDays, setExpiresDays] = useState(30)
-  const [mainFile, setMainFile] = useState<File | null>(null)
-  const [condFile, setCondFile] = useState<File | null>(null)
-  const [desc,     setDesc]     = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState('')
+  const [mainFile,    setMainFile]    = useState<File | null>(null)
+  const [condFile,    setCondFile]    = useState<File | null>(null)
+  const [desc,        setDesc]        = useState('')
+  const [loading,     setLoading]     = useState(false)
+  const [extracting,  setExtracting]  = useState(false)
+  const [error,       setError]       = useState('')
 
   const cfg = DOC_CONFIG[docType]
 
-  // Limpiar condiciones si cambia a tipo sin condiciones
   function handleTypeChange(t: DocType) {
     setDocType(t)
     setMainFile(null)
     setCondFile(null)
+    setDesc('')
     setError('')
+  }
+
+  // Al seleccionar el PDF principal, intentar extraer el número
+  async function handleMainFile(file: File | null) {
+    setMainFile(file)
+    if (!file || docType === 'price_list') return
+
+    setExtracting(true)
+    const detected = await extractDocNumber(file, docType)
+    setExtracting(false)
+
+    if (detected && !desc) {
+      setDesc(detected)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -127,7 +207,7 @@ function UploadModalContent({ clientId, clientName, onClose, onSuccess }: {
     form.append('clientId',      String(clientId))
     form.append('description',   desc)
     form.append('document_type', docType)
-    form.append('expires_days',   String(expiresDays))
+    form.append('expires_days',  String(expiresDays))
     if (condFile && cfg.showConditions) form.append('conditionsFile', condFile)
 
     try {
@@ -172,18 +252,16 @@ function UploadModalContent({ clientId, clientName, onClose, onSuccess }: {
             <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '10px', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '2px' }}>
               Documentos · {clientName}
             </div>
-            <h3 style={{ fontFamily: "'Rajdhani', sans-serif", fontWeight: 700, fontSize: '18px', color: cfg.color, letterSpacing: '0.06em', margin: 0, transition: 'color 0.2s' }}>
+            <h2 style={{ fontFamily: "'Rajdhani', sans-serif", fontWeight: 700, fontSize: '20px', color: cfg.color, letterSpacing: '0.06em', lineHeight: 1 }}>
               {cfg.title}
-            </h3>
+            </h2>
           </div>
-          <button onClick={() => !loading && onClose()} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '22px', lineHeight: 1, padding: '4px 6px', borderRadius: '6px' }}>
-            ✕
-          </button>
+          <button onClick={() => !loading && onClose()} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '20px', lineHeight: 1, padding: '4px 8px' }}>✕</button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
 
-          {/* Selector de tipo */}
+          {/* Selector tipo */}
           <div>
             <label style={{ display: 'block', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '11px', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>
               Tipo de documento
@@ -231,8 +309,9 @@ function UploadModalContent({ clientId, clientName, onClose, onSuccess }: {
             label={cfg.mainLabel}
             required={true}
             file={mainFile}
-            onFile={setMainFile}
+            onFile={handleMainFile}
             hint={cfg.mainHint}
+            loading={extracting}
           />
 
           {/* PDF de condiciones — solo para lista */}
@@ -246,41 +325,50 @@ function UploadModalContent({ clientId, clientName, onClose, onSuccess }: {
             />
           )}
 
+          {/* Vencimiento del link */}
+          <div>
+            <label style={{ display: 'block', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '11px', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>
+              Vigencia del link de firma
+            </label>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {[15, 30, 60, 90].map(days => (
+                <button key={days} type="button"
+                  onClick={() => setExpiresDays(days)}
+                  style={{
+                    flex: 1, padding: '8px 4px', borderRadius: '10px', border: '1.5px solid',
+                    borderColor: expiresDays === days ? cfg.color : 'rgba(255,255,255,0.1)',
+                    background: expiresDays === days ? cfg.colorBg : 'transparent',
+                    color: expiresDays === days ? cfg.color : 'var(--text-secondary)',
+                    cursor: 'pointer', fontFamily: "'Barlow Condensed', sans-serif",
+                    fontSize: '12px', fontWeight: 700, transition: 'all 0.15s',
+                  }}
+                >
+                  {days}d
+                </button>
+              ))}
+            </div>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '5px' }}>
+              El cliente tendrá {expiresDays} días para firmar antes de que el link expire.
+            </p>
+          </div>
 
-                {/* Vencimiento del link */}
-                <div>
-                  <label style={{ display: 'block', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '11px', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                    Vigencia del link de firma
-                  </label>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    {[15, 30, 60, 90].map(days => (
-                      <button key={days} type="button"
-                        onClick={() => setExpiresDays(days)}
-                        style={{
-                          flex: 1, padding: '8px 4px', borderRadius: '10px', border: '1.5px solid',
-                          borderColor: expiresDays === days ? cfg.color : 'rgba(255,255,255,0.1)',
-                          background: expiresDays === days ? cfg.colorBg : 'transparent',
-                          color: expiresDays === days ? cfg.color : 'var(--text-secondary)',
-                          cursor: 'pointer', fontFamily: "'Barlow Condensed', sans-serif",
-                          fontSize: '12px', fontWeight: 700, transition: 'all 0.15s',
-                        }}
-                      >
-                        {days}d
-                      </button>
-                    ))}
-                  </div>
-                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '5px' }}>
-                    El cliente tendrá {expiresDays} días para firmar antes de que el link expire.
-                  </p>
-                </div>
-
-          {/* Descripción */}
+          {/* Descripción — autocompletada */}
           <div>
             <label style={{ display: 'block', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '11px', fontWeight: 600, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '6px' }}>
-              Descripción (opcional)
+              Descripción
+              {extracting && (
+                <span style={{ marginLeft: '8px', color: cfg.color, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                  leyendo PDF…
+                </span>
+              )}
+              {!extracting && desc && docType !== 'price_list' && (
+                <span style={{ marginLeft: '8px', color: '#00c853', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                  ✓ detectado automáticamente
+                </span>
+              )}
             </label>
             <input
-              type="text" className="xbox-input" style={{ borderRadius: '10px' }}
+              type="text" className="xbox-input" style={{ borderRadius: '10px', transition: 'border-color 0.2s' }}
               placeholder={
                 docType === 'price_list' ? 'Ej: Lista 280 — Tresnal Agropecuaria — Abr 2026' :
                 docType === 'invoice'    ? 'Ej: Factura N° 0001-00001234' :
@@ -302,8 +390,8 @@ function UploadModalContent({ clientId, clientName, onClose, onSuccess }: {
               style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600, fontSize: '13px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               Cancelar
             </button>
-            <button type="submit" disabled={loading || !mainFile}
-              style={{ flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: loading || !mainFile ? 'rgba(255,255,255,0.05)' : cfg.color, color: loading || !mainFile ? 'var(--text-muted)' : '#000', cursor: loading || !mainFile ? 'not-allowed' : 'pointer', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: loading || !mainFile ? 0.5 : 1, transition: 'background 0.2s' }}>
+            <button type="submit" disabled={loading || !mainFile || extracting}
+              style={{ flex: 2, padding: '12px', borderRadius: '10px', border: 'none', background: loading || !mainFile || extracting ? 'rgba(255,255,255,0.05)' : cfg.color, color: loading || !mainFile || extracting ? 'var(--text-muted)' : '#000', cursor: loading || !mainFile || extracting ? 'not-allowed' : 'pointer', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: loading || !mainFile || extracting ? 0.5 : 1, transition: 'background 0.2s' }}>
               {loading ? (
                 <>
                   <svg className="animate-spin" width="14" height="14" fill="none" viewBox="0 0 24 24">
@@ -312,6 +400,8 @@ function UploadModalContent({ clientId, clientName, onClose, onSuccess }: {
                   </svg>
                   Subiendo…
                 </>
+              ) : extracting ? (
+                <>⏳ Leyendo documento…</>
               ) : (
                 <>
                   <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
