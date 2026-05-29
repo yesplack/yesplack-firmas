@@ -135,6 +135,7 @@ export async function POST(
       signatureBase64,
       clientName: list.clients?.nombre ?? 'Cliente',
       signedAt:   new Date(),
+      documentType: list.document_type ?? 'price_list',
     })
 
     log('Subiendo...')

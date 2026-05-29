@@ -5,10 +5,11 @@ interface SignOptions {
   signatureBase64: string   // "data:image/png;base64,..." from canvas
   clientName:      string
   signedAt:        Date
+  documentType?:   string   // 'price_list' | 'factura' | 'remito'
 }
 
 export async function signPDF(opts: SignOptions): Promise<Uint8Array> {
-  const { pdfBuffer, signatureBase64, clientName, signedAt } = opts
+  const { pdfBuffer, signatureBase64, clientName, signedAt, documentType = 'price_list' } = opts
 
   const pdfDoc = await PDFDocument.load(pdfBuffer)
   const pages  = pdfDoc.getPages()
@@ -20,13 +21,47 @@ export async function signPDF(opts: SignOptions): Promise<Uint8Array> {
   const sigBytes   = Buffer.from(base64Data, 'base64')
   const sigImage   = await pdfDoc.embedPng(sigBytes)
 
-  // ── Zona "Firma del Cliente" — más grande ───────────────────────────
-  const sigZoneX = 38
-  const sigZoneY = 88          // desde el fondo de la página
-  const sigZoneW = Math.min(250, width * 0.42)   // antes: 180 / 0.32
-  const sigZoneH = 90                             // antes: 55
+  // ── Posición según tipo de documento ───────────────────────────────
+  // Página A4 estándar = 595 x 842 pts (coordenadas pdf-lib: y=0 en el fondo)
+  //
+  // REMITO: zona "Recibí Conforme" está en la mitad derecha
+  //   pdfplumber: "Recibí Conforme" top=586 → desde abajo = 842-586 = 256 pts
+  //   "Aclaración de Firma"  top=612 → desde abajo = 842-612 = 230 pts
+  //   La firma se pone encima de esas líneas, en la mitad derecha (x ≈ 295)
+  //
+  // FACTURA: no tiene zona de firma, la ponemos en esquina inferior derecha
+  //   debajo del bloque de totales (último texto relevante ~y=680 desde arriba = 162 desde abajo)
+  //
+  // LISTA DE PRECIOS: esquina inferior izquierda (comportamiento original)
 
-  // Fondo blanco para tapar los puntitos del formulario
+  let sigZoneX: number
+  let sigZoneY: number
+  let sigZoneW: number
+  let sigZoneH: number
+
+  if (documentType === 'remito') {
+    // Mitad derecha, sobre la línea "Recibí Conforme"
+    // "Recibí Conforme" está a 256 pts desde abajo — la zona arranca justo encima
+    sigZoneX = 295          // mitad derecha de la página
+    sigZoneY = 258          // justo sobre la línea "Recibí Conforme"
+    sigZoneW = Math.min(270, width - 295 - 15)   // hasta el margen derecho
+    sigZoneH = 90
+  } else if (documentType === 'factura') {
+    // Esquina inferior izquierda, debajo del bloque de horarios
+    // Último texto importante ~y=755 desde arriba → 87 desde abajo; dejamos margen
+    sigZoneX = 20
+    sigZoneY = 20
+    sigZoneW = Math.min(250, width * 0.42)
+    sigZoneH = 70
+  } else {
+    // price_list — comportamiento original, esquina inferior izquierda
+    sigZoneX = 38
+    sigZoneY = 88
+    sigZoneW = Math.min(250, width * 0.42)
+    sigZoneH = 90
+  }
+
+  // Fondo blanco para tapar los puntitos/líneas del formulario
   page.drawRectangle({
     x:           sigZoneX - 2,
     y:           sigZoneY - 2,
@@ -38,14 +73,14 @@ export async function signPDF(opts: SignOptions): Promise<Uint8Array> {
     borderWidth: 0.8,
   })
 
-  // ── Imagen de la firma — más grande ────────────────────────────────
+  // ── Imagen de la firma ──────────────────────────────────────────────
   const sigAspect = sigImage.width / sigImage.height
-  const drawH     = Math.min(68, sigZoneH - 22)           // antes: 42
+  const drawH     = Math.min(68, sigZoneH - 22)
   const drawW     = Math.min(sigAspect * drawH, sigZoneW - 10)
 
   page.drawImage(sigImage, {
     x:      sigZoneX + 5,
-    y:      sigZoneY + 20,     // desde abajo de la zona
+    y:      sigZoneY + 20,
     width:  drawW,
     height: drawH,
   })
@@ -57,25 +92,22 @@ export async function signPDF(opts: SignOptions): Promise<Uint8Array> {
   const gray     = rgb(0.3, 0.3, 0.3)
   const dark     = rgb(0.05, 0.05, 0.05)
 
-  // Nombre del cliente — más grande
   const nameText = clientName.length > 36 ? clientName.substring(0, 34) + '...' : clientName
   page.drawText(nameText, {
     x: sigZoneX + 3, y: sigZoneY + 11,
-    size: 8.5, font: fontBold, color: dark,   // antes: 7
+    size: 8.5, font: fontBold, color: dark,
   })
 
-  // Fecha y hora
   const dateStr = signedAt.toLocaleDateString('es-AR') +
     ' ' + signedAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
   page.drawText(dateStr, {
     x: sigZoneX + 3, y: sigZoneY + 1,
-    size: 7.5, font, color: gray,              // antes: 6
+    size: 7.5, font, color: gray,
   })
 
-  // Sello digital
   page.drawText('* FIRMADO DIGITALMENTE', {
     x: sigZoneX + 3, y: sigZoneY - 9,
-    size: 7, font: fontBold, color: green,     // antes: 5.5
+    size: 7, font: fontBold, color: green,
   })
 
   // ── Marca de agua diagonal ──────────────────────────────────────────
