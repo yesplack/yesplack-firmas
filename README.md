@@ -197,3 +197,4 @@ ombu-firmas/
 - **[pdf-lib](https://pdf-lib.js.org/)** — incrusta la firma PNG directamente en el PDF, sin popups ni plugins
 - **Supabase RLS** — el link público `/firmar/{token}` solo puede leer/actualizar esa lista específica
 - **Cloudinary `raw`** — almacena PDFs con URLs permanentes y seguras
+ 
