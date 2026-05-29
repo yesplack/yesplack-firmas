@@ -1,4 +1,4 @@
-import { createServerClient } from '@/lib/supabase-server'
+import { createAdminClient } from '@/lib/supabase-server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PriceListsLive from './PriceListsLive'
@@ -17,7 +17,7 @@ const TYPE_BADGE: Record<string, string> = {
 }
 
 export default async function ClientProfilePage({ params }: { params: { id: string } }) {
-  const supabase = createServerClient()
+  const supabase = createAdminClient() as any
   const clientId = parseInt(params.id, 10)
 
   const { data: clientRaw } = await (supabase as any)
