@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title:       'Grupo El Ombú — Firmas Digitales',
-  description: 'Sistema de firma digital de listas de precios',
+  title:       'YESPLACK — Firmas Digitales',
+  description: 'Sistema de firma digital de documentos — YESPLACK',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
