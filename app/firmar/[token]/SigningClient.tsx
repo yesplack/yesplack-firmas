@@ -114,7 +114,7 @@ export default function SigningClient({ token, pdfUrl, conditionsPdfUrl, fileNam
           Link expirado
         </h2>
         <p style={{ fontSize: '14px', color: '#666', lineHeight: 1.6, marginBottom: '24px' }}>
-          Este link de firma ya no está vigente. Contactá a <strong>Grupo El Ombú</strong> para solicitar un nuevo link.
+          Este link de firma ya no está vigente. Contactá a <strong>YESPLACK</strong> para solicitar un nuevo link.
         </p>
         <div style={{ padding: '12px 16px', background: '#fffbf0', border: '1px solid #ffd699', borderRadius: '10px', fontSize: '13px', color: '#996600' }}>
           Los links tienen una vigencia limitada por seguridad.
@@ -129,18 +129,18 @@ export default function SigningClient({ token, pdfUrl, conditionsPdfUrl, fileNam
     const label = viewing === 'list' ? 'Lista de precios' : 'Condiciones de acopio'
     return (
       <div style={{ position: 'fixed', inset: 0, background: '#fff', display: 'flex', flexDirection: 'column', zIndex: 100 }}>
-        <div style={{ background: '#1a3a1a', color: '#fff', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{ background: '#1a1700', color: '#fff', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
             <div style={{ fontWeight: 700, fontSize: '14px' }}>{label}</div>
-            <div style={{ fontSize: '11px', color: '#7ecfa0', marginTop: '1px' }}>{fileName}</div>
+            <div style={{ fontSize: '11px', color: '#c9a83a', marginTop: '1px' }}>{fileName}</div>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <a href={url} target="_blank" rel="noopener noreferrer"
-              style={{ padding: '6px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.12)', color: '#7ecfa0', fontSize: '12px', textDecoration: 'none', fontWeight: 600 }}>
+              style={{ padding: '6px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.12)', color: '#c9a83a', fontSize: '12px', textDecoration: 'none', fontWeight: 600 }}>
               ↓ Descargar
             </a>
             <button onClick={() => setViewing(null)}
-              style={{ padding: '6px 14px', borderRadius: '8px', background: '#00952e', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
+              style={{ padding: '6px 14px', borderRadius: '8px', background: '#D4A800', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}>
               ← Volver
             </button>
           </div>
@@ -154,14 +154,14 @@ export default function SigningClient({ token, pdfUrl, conditionsPdfUrl, fileNam
   if (done) return (
     <div style={{ minHeight: '100vh', background: '#f0f4f0', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ background: '#fff', borderRadius: '20px', padding: '40px 32px', maxWidth: '400px', width: '100%', textAlign: 'center', boxShadow: '0 8px 40px rgba(0,0,0,0.1)', border: '1.5px solid #b8ddb8' }}>
-        <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#f0faf0', border: '3px solid #00952e', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-          <svg width="36" height="36" fill="none" stroke="#00952e" strokeWidth={2.5} viewBox="0 0 24 24">
+        <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#f0faf0', border: '3px solid #D4A800', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+          <svg width="36" height="36" fill="none" stroke="#D4A800" strokeWidth={2.5} viewBox="0 0 24 24">
             <polyline points="20 6 9 17 4 12"/>
           </svg>
         </div>
         <h2 style={{ fontWeight: 700, fontSize: '22px', color: '#1a2e1a', marginBottom: '10px' }}>SU FIRMA FUE REGISTRADA</h2>
         <p style={{ fontSize: '14px', color: '#666', lineHeight: 1.6 }}>
-          La firma digital quedó registrada correctamente en el sistema de <strong>Grupo El Ombú</strong>.
+          La firma digital quedó registrada correctamente en el sistema de <strong>YESPLACK</strong>.
         </p>
       </div>
     </div>
@@ -170,13 +170,13 @@ export default function SigningClient({ token, pdfUrl, conditionsPdfUrl, fileNam
   // ── Pantalla: canvas de firma fullscreen ──────────────────────────
   if (fullSig) return (
     <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', zIndex: 100, background: '#fff' }}>
-      <div style={{ background: '#1a3a1a', color: '#fff', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+      <div style={{ background: '#1a1700', color: '#fff', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: '15px' }}>Firmá las condiciones de acopio</div>
-          <div style={{ fontSize: '12px', color: '#7ecfa0', marginTop: '1px' }}>{clientName} · Campo "Firma del Cliente"</div>
+          <div style={{ fontSize: '12px', color: '#c9a83a', marginTop: '1px' }}>{clientName} · Campo "Firma del Cliente"</div>
         </div>
         <button onClick={() => { clearSig(); setFullSig(false) }}
-          style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#7ecfa0', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontSize: '12px' }}>
+          style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', color: '#c9a83a', borderRadius: '8px', padding: '6px 12px', cursor: 'pointer', fontSize: '12px' }}>
           Cancelar
         </button>
       </div>
@@ -197,7 +197,7 @@ export default function SigningClient({ token, pdfUrl, conditionsPdfUrl, fileNam
             Limpiar
           </button>
           <button onClick={handleSign} disabled={loading || !hasSig}
-            style={{ flex: 2, padding: '14px', borderRadius: '12px', background: loading || !hasSig ? '#aaa' : '#00952e', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: loading || !hasSig ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', border: 'none' }}>
+            style={{ flex: 2, padding: '14px', borderRadius: '12px', background: loading || !hasSig ? '#aaa' : '#D4A800', color: '#fff', fontSize: '14px', fontWeight: 700, cursor: loading || !hasSig ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', border: 'none' }}>
             {loading ? (
               <><svg className="animate-spin" width="18" height="18" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Procesando…</>
             ) : (
@@ -212,16 +212,16 @@ export default function SigningClient({ token, pdfUrl, conditionsPdfUrl, fileNam
   // ── Vista principal ────────────────────────────────────────────────
   return (
     <div style={{ minHeight: '100vh', background: '#f5f8f5', fontFamily: 'system-ui, sans-serif' }}>
-      <header style={{ background: '#1a3a1a', color: '#fff', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div style={{ width: '36px', height: '36px', background: '#00952e', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <header style={{ background: '#1a1700', color: '#fff', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ width: '36px', height: '36px', background: '#D4A800', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="20" height="20" fill="none" stroke="#fff" strokeWidth={1.8} viewBox="0 0 24 24">
             <path d="M12 22v-7" strokeLinecap="round"/>
             <path d="M9 8c0 3 1.5 5 3 7 1.5-2 3-4 3-7a3 3 0 0 0-6 0z" strokeLinecap="round"/>
           </svg>
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: '15px', letterSpacing: '0.04em' }}>GRUPO EL OMBÚ</div>
-          <div style={{ fontSize: '11px', color: '#7ecfa0' }}>Firma digital de documentos</div>
+          <div style={{ fontWeight: 700, fontSize: '15px', letterSpacing: '0.04em' }}>YESPLACK</div>
+          <div style={{ fontSize: '11px', color: '#c9a83a' }}>Firma digital de documentos</div>
         </div>
       </header>
 
@@ -241,12 +241,12 @@ export default function SigningClient({ token, pdfUrl, conditionsPdfUrl, fileNam
           </div>
           <div style={{ padding: '14px 16px', display: 'flex', gap: '10px' }}>
             <button onClick={() => setViewing('list')}
-              style={{ flex: 1, padding: '11px', background: '#1a3a1a', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 600, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              style={{ flex: 1, padding: '11px', background: '#1a1700', color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 600, fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
               <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
               Ver documento
             </button>
             <a href={pdfUrl} download target="_blank" rel="noopener noreferrer"
-              style={{ padding: '11px 14px', background: '#f0faf0', color: '#1a3a1a', border: '1.5px solid #c0ddc0', borderRadius: '10px', textDecoration: 'none', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              style={{ padding: '11px 14px', background: '#f0faf0', color: '#1a1700', border: '1.5px solid #c0ddc0', borderRadius: '10px', textDecoration: 'none', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <svg width="15" height="15" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               ↓
             </a>
@@ -282,7 +282,7 @@ export default function SigningClient({ token, pdfUrl, conditionsPdfUrl, fileNam
             Tu firma se incrustará en el campo <strong>"Firma del Cliente"</strong> del documento.
           </div>
           <button onClick={() => { setFullSig(true); setHasSig(false) }}
-            style={{ width: '100%', padding: '18px', border: '2px dashed #00952e', borderRadius: '12px', background: '#f5fbf5', color: '#00952e', fontWeight: 600, fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+            style={{ width: '100%', padding: '18px', border: '2px dashed #D4A800', borderRadius: '12px', background: '#f5fbf5', color: '#D4A800', fontWeight: 600, fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
             <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
               <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
             </svg>
