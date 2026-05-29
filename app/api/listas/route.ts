@@ -16,7 +16,6 @@ function getIP(req: NextRequest): string {
 
 export async function POST(req: NextRequest) {
   try {
-    // Verificar autenticación
     const supabaseUser = createServerClient()
     const { data: { user } } = await supabaseUser.auth.getUser()
     if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -25,12 +24,16 @@ export async function POST(req: NextRequest) {
     const listFile    = form.get('file')           as File | null
     const condFile    = form.get('conditionsFile') as File | null
     const clientId    = form.get('clientId')       as string | null
+    const supplierId  = form.get('supplierId')     as string | null   // ← nuevo
     const desc        = (form.get('description')   as string) ?? ''
-    const docType     = (form.get('document_type') as string) ?? 'price_list'
-    const expiresDays = parseInt((form.get('expires_days') as string) ?? '30', 10)
+    const docType     = (form.get('documentType')  as string) ?? (form.get('document_type') as string) ?? 'price_list'
+    const expiresDays = parseInt((form.get('expiryDays') as string) ?? (form.get('expires_days') as string) ?? '30', 10)
 
-    if (!listFile || !clientId) {
+    if (!listFile) {
       return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
+    }
+    if (!clientId && !supplierId) {
+      return NextResponse.json({ error: 'Se requiere clientId o supplierId' }, { status: 400 })
     }
     if (listFile.type !== 'application/pdf') {
       return NextResponse.json({ error: 'El archivo debe ser un PDF' }, { status: 400 })
@@ -39,16 +42,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'El PDF no puede superar 20 MB' }, { status: 400 })
     }
 
-    const cid       = parseInt(clientId, 10)
+    const cid       = clientId   ? parseInt(clientId, 10)   : null
+    const sid       = supplierId ? parseInt(supplierId, 10) : null
+    const entityId  = cid ?? sid!
+    const folder    = supplierId ? 'proveedores' : 'listas'
     const expiresAt = new Date(Date.now() + expiresDays * 24 * 60 * 60 * 1000).toISOString()
 
     const listBuffer = Buffer.from(await listFile.arrayBuffer())
-    const listResult = await uploadPDF(listBuffer, listFile.name, cid, 'listas')
+    const listResult = await uploadPDF(listBuffer, listFile.name, entityId, folder)
 
     let condUrl: string | null = null
     if (condFile && condFile.type === 'application/pdf') {
       const condBuffer = Buffer.from(await condFile.arrayBuffer())
-      const condResult = await uploadPDF(condBuffer, condFile.name, cid, 'condiciones')
+      const condResult = await uploadPDF(condBuffer, condFile.name, entityId, 'condiciones')
       condUrl = condResult.url
     }
 
@@ -57,6 +63,7 @@ export async function POST(req: NextRequest) {
       .from('price_lists')
       .insert({
         client_id:          cid,
+        supplier_id:        sid,          // ← nuevo
         file_name:          listFile.name,
         description:        desc || null,
         pdf_url:            listResult.url,
@@ -72,7 +79,7 @@ export async function POST(req: NextRequest) {
     await logAction({
       action: 'documento_subido', entityType: 'price_list', entityId: data.id,
       userId: user.id, ip: getIP(req), userAgent: req.headers.get('user-agent'),
-      metadata: { client_id: cid, file_name: listFile.name, doc_type: docType, expires_at: expiresAt },
+      metadata: { client_id: cid, supplier_id: sid, file_name: listFile.name, doc_type: docType, expires_at: expiresAt },
     })
 
     return NextResponse.json({ success: true, data })
@@ -95,12 +102,12 @@ export async function DELETE(req: NextRequest) {
 
     const { data: list, error: fetchErr } = await admin
       .from('price_lists')
-      .select('pdf_url, conditions_pdf_url, signed_pdf_url, signed_conditions_pdf_url, file_name, client_id, document_type')
+      .select('pdf_url, conditions_pdf_url, signed_pdf_url, signed_conditions_pdf_url, file_name, client_id, supplier_id, document_type')
       .eq('id', id)
       .single()
 
     if (fetchErr || !list) {
-      return NextResponse.json({ error: 'Lista no encontrada' }, { status: 404 })
+      return NextResponse.json({ error: 'Documento no encontrado' }, { status: 404 })
     }
 
     const urlToPath = (url: string | null): string | null => {
@@ -129,7 +136,7 @@ export async function DELETE(req: NextRequest) {
     await logAction({
       action: 'documento_eliminado', entityType: 'price_list', entityId: id,
       userId: user.id, ip: getIP(req), userAgent: req.headers.get('user-agent'),
-      metadata: { file_name: list.file_name, client_id: list.client_id, doc_type: list.document_type, files_deleted: pathsToDel.length },
+      metadata: { file_name: list.file_name, client_id: list.client_id, supplier_id: list.supplier_id, doc_type: list.document_type, files_deleted: pathsToDel.length },
     })
 
     return NextResponse.json({ success: true, deleted_files: pathsToDel.length })

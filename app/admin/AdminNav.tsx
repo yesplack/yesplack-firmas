@@ -46,7 +46,8 @@ export default function AdminNav({ userEmail }: Props) {
   const isRoot = (
     pathname === '/admin/clientes' ||
     pathname === '/admin/usuarios' ||
-    pathname === '/admin/health'
+    pathname === '/admin/health'   ||
+    pathname === '/admin/proveedores'
   )
 
   // ── Logout ──────────────────────────────────────────────────────────
@@ -173,6 +174,10 @@ export default function AdminNav({ userEmail }: Props) {
     {
       href: '/admin/clientes', label: 'Clientes',
       icon: <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+    },
+    {
+      href: '/admin/proveedores', label: 'Proveedores',
+      icon: <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M20 7H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
     },
     ...(canUsers ? [{
       href: '/admin/usuarios', label: 'Usuarios',
