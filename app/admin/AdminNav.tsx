@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -8,7 +8,9 @@ import { createClient } from '@/lib/supabase'
 
 interface Props { userEmail: string }
 
-// Extrae el nombre visible: strip @ombu.internal, o usa la parte antes del @
+const INACTIVITY_MINUTES = 120   // desloguear después de 2 horas sin actividad
+const WARNING_SECONDS    = 60    // aviso 60 segundos antes
+
 function displayName(email: string) {
   if (!email) return ''
   const local = email.split('@')[0]
@@ -34,23 +36,99 @@ export default function AdminNav({ userEmail }: Props) {
   const [cpError,   setCpError]   = useState('')
   const [cpDone,    setCpDone]    = useState(false)
 
+  // Inactividad
+  const [showWarning,   setShowWarning]   = useState(false)
+  const [countdown,     setCountdown]     = useState(WARNING_SECONDS)
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const warningTimer    = useRef<ReturnType<typeof setInterval> | null>(null)
+  const countdownRef    = useRef(WARNING_SECONDS)
+
   const isRoot = (
     pathname === '/admin/clientes' ||
     pathname === '/admin/usuarios' ||
     pathname === '/admin/health'
   )
 
+  // ── Logout ──────────────────────────────────────────────────────────
+  const logout = useCallback(async () => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+    if (warningTimer.current)    clearInterval(warningTimer.current)
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }, [supabase, router])
+
+  // ── Inactividad ─────────────────────────────────────────────────────
+  const resetInactivityTimer = useCallback(() => {
+    if (showWarning) return   // si ya mostró el aviso, no resetear por movimiento
+
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+
+    inactivityTimer.current = setTimeout(() => {
+      // Mostrar aviso con cuenta regresiva
+      countdownRef.current = WARNING_SECONDS
+      setCountdown(WARNING_SECONDS)
+      setShowWarning(true)
+
+      warningTimer.current = setInterval(() => {
+        countdownRef.current -= 1
+        setCountdown(countdownRef.current)
+        if (countdownRef.current <= 0) {
+          clearInterval(warningTimer.current!)
+          setShowWarning(false)
+          logout()
+        }
+      }, 1000)
+    }, INACTIVITY_MINUTES * 60 * 1000)
+  }, [showWarning, logout])
+
+  function cancelLogout() {
+    if (warningTimer.current) clearInterval(warningTimer.current)
+    setShowWarning(false)
+    resetInactivityTimer()
+  }
+
+  // ── Listeners de actividad + sesión de Supabase ──────────────────────
   useEffect(() => {
     setMounted(true)
+
+    // Tema
     const saved  = localStorage.getItem('yesplack-theme')
     const isDark = saved ? saved === 'dark' : true
     setDark(isDark)
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light')
 
+    // Rol
     fetch('/api/usuarios/me').then(r => r.json()).then(d => {
       setRole(d.role ?? '')
       setCanUsers(d.role === 'master' || (d.role === 'admin' && d.can_create_users))
     })
+
+    // Listener de sesión Supabase — si el token expira o se invalida, redirige al login
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED') {
+        if (event === 'SIGNED_OUT') {
+          router.push('/login')
+          router.refresh()
+        }
+      }
+    })
+
+    // Eventos de actividad del usuario
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart']
+    const handler = () => resetInactivityTimer()
+    events.forEach(ev => window.addEventListener(ev, handler, { passive: true }))
+
+    // Arrancar el timer inicial
+    resetInactivityTimer()
+
+    return () => {
+      subscription.unsubscribe()
+      events.forEach(ev => window.removeEventListener(ev, handler))
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+      if (warningTimer.current)    clearInterval(warningTimer.current)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function toggleTheme() {
@@ -58,12 +136,6 @@ export default function AdminNav({ userEmail }: Props) {
     setDark(next)
     document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light')
     localStorage.setItem('yesplack-theme', next ? 'dark' : 'light')
-  }
-
-  async function logout() {
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
   }
 
   function openCP() {
@@ -75,9 +147,9 @@ export default function AdminNav({ userEmail }: Props) {
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault()
     setCpError('')
-    if (cpNew.length < 6)          { setCpError('La nueva contraseña debe tener al menos 6 caracteres'); return }
-    if (cpNew !== cpConfirm)       { setCpError('Las contraseñas no coinciden'); return }
-    if (cpCurrent === cpNew)       { setCpError('La nueva contraseña debe ser diferente a la actual'); return }
+    if (cpNew.length < 6)    { setCpError('La nueva contraseña debe tener al menos 6 caracteres'); return }
+    if (cpNew !== cpConfirm) { setCpError('Las contraseñas no coinciden'); return }
+    if (cpCurrent === cpNew) { setCpError('La nueva contraseña debe ser diferente a la actual'); return }
 
     setCpLoading(true)
     try {
@@ -114,7 +186,7 @@ export default function AdminNav({ userEmail }: Props) {
 
   return (
     <>
-      {/* ── Header ────────────────────────────────────────────── */}
+      {/* ── Header ─────────────────────────────────────────────── */}
       <header style={{
         background: 'var(--bg-panel)', borderBottom: '1.5px solid var(--border)',
         padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -143,8 +215,8 @@ export default function AdminNav({ userEmail }: Props) {
                   fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 600,
                   fontSize: '13px', letterSpacing: '0.08em', textTransform: 'uppercase',
                   color: active ? 'var(--ombu-green)' : 'var(--text-secondary)',
-                  background: active ? 'rgba(0,200,83,0.1)' : 'transparent',
-                  border: `1px solid ${active ? 'rgba(0,200,83,0.3)' : 'transparent'}`,
+                  background: active ? 'rgba(255,215,0,0.08)' : 'transparent',
+                  border: active ? '1px solid rgba(255,215,0,0.2)' : '1px solid transparent',
                   transition: 'all 0.15s',
                 }}>
                   {link.icon}{link.label}
@@ -156,31 +228,21 @@ export default function AdminNav({ userEmail }: Props) {
 
         {/* Right */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {role && (
-            <span style={{
-              padding: '3px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: 700,
-              fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: '0.1em',
-              background: role === 'master' ? 'rgba(255,170,0,0.12)' : 'rgba(0,200,83,0.1)',
-              color:      role === 'master' ? '#ffaa00'               : 'var(--ombu-green)',
-              border:     `1px solid ${role === 'master' ? 'rgba(255,170,0,0.3)' : 'rgba(0,200,83,0.3)'}`,
-            }}>
-              {role.toUpperCase()}
+          {role === 'master' && (
+            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '10px', fontWeight: 700, letterSpacing: '0.12em', padding: '3px 8px', borderRadius: '6px', background: 'rgba(255,215,0,0.12)', border: '1px solid rgba(255,215,0,0.3)', color: 'var(--ombu-green)', textTransform: 'uppercase' }}>
+              MASTER
             </span>
           )}
 
-          {/* Nombre clickeable → modal cambiar clave */}
-          <button
-            onClick={openCP}
-            title="Cambiar mi contraseña"
-            style={{
-              display: 'flex', alignItems: 'center', gap: '5px',
-              padding: '5px 10px', borderRadius: '8px',
-              border: '1px solid var(--border)', background: 'transparent',
-              color: 'var(--text-secondary)', cursor: 'pointer',
-              fontFamily: "'Barlow Condensed', sans-serif", fontSize: '11px',
-              fontWeight: 600, letterSpacing: '0.06em',
-              transition: 'all 0.15s',
-            }}
+          <button onClick={openCP} style={{
+            display: 'flex', alignItems: 'center', gap: '5px',
+            padding: '5px 10px', borderRadius: '8px',
+            border: '1px solid var(--border)', background: 'transparent',
+            color: 'var(--text-secondary)', cursor: 'pointer',
+            fontFamily: "'Barlow Condensed', sans-serif", fontSize: '11px',
+            fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase',
+            transition: 'all 0.15s',
+          }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,215,0,0.4)'; e.currentTarget.style.color = 'var(--ombu-green)' }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
           >
@@ -227,6 +289,74 @@ export default function AdminNav({ userEmail }: Props) {
           </svg>
           Atrás
         </button>
+      )}
+
+      {/* ── Modal: Aviso de inactividad ───────────────────────── */}
+      {mounted && showWarning && createPortal(
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 99998,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '16px', background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(8px)',
+        }}>
+          <div style={{
+            background: 'var(--bg-card)', border: '1.5px solid rgba(255,170,0,0.4)',
+            borderRadius: '20px', padding: '32px 28px', width: '100%', maxWidth: '360px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px',
+            boxShadow: '0 24px 64px rgba(0,0,0,0.6), 0 0 40px rgba(255,170,0,0.1)',
+            textAlign: 'center',
+          }}>
+            {/* Ícono */}
+            <div style={{
+              width: '56px', height: '56px', borderRadius: '50%',
+              background: 'rgba(255,170,0,0.12)', border: '2px solid rgba(255,170,0,0.4)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="24" height="24" fill="none" stroke="#ffaa00" strokeWidth={2} viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+
+            <div>
+              <h3 style={{ fontFamily: "'Rajdhani', sans-serif", fontWeight: 700, fontSize: '20px', color: 'var(--text-primary)', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                ¿Seguís ahí?
+              </h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                Por inactividad, la sesión se cerrará en
+              </p>
+              <div style={{
+                fontFamily: "'Rajdhani', sans-serif", fontWeight: 700,
+                fontSize: '48px', color: countdown <= 10 ? '#f87171' : '#ffaa00',
+                lineHeight: 1.1, margin: '8px 0',
+                transition: 'color 0.3s',
+              }}>
+                {countdown}
+              </div>
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>segundos</p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+              <button onClick={logout} style={{
+                flex: 1, padding: '11px', borderRadius: '12px',
+                border: '1.5px solid rgba(255,255,255,0.15)', background: 'transparent',
+                color: 'var(--text-secondary)', cursor: 'pointer',
+                fontSize: '13px', fontWeight: 600, fontFamily: "'Barlow Condensed', sans-serif",
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+              }}>
+                Salir ahora
+              </button>
+              <button onClick={cancelLogout} style={{
+                flex: 2, padding: '11px', borderRadius: '12px',
+                border: '1.5px solid rgba(255,170,0,0.5)', background: 'rgba(255,170,0,0.12)',
+                color: '#ffaa00', cursor: 'pointer',
+                fontSize: '13px', fontWeight: 700, fontFamily: "'Barlow Condensed', sans-serif",
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+              }}>
+                Seguir conectado
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Modal: Cambiar contraseña ─── via Portal ─────────── */}
